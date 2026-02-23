@@ -43,10 +43,47 @@ async function main() {
       const result3 = await collection.aggregate([
           { $group: { _id: "$age", alldoc: { $push: "$$ROOT" } } }
       ]).toArray();
+    const result4=await collection.aggregate([
+      { $match:{gender:"male"}},
+      // Stage 1: filter males
+      { $group:{_id:"$age",names:{$push:"$name"},alldoc:{$push:"$$ROOT"}}},
+      // Stage 2: group by age
+      {$sort:{_id:1}}
+      // Stage 3: sort by age
+    ]).toArray();
 
+// Step 1: get all male teachers
+const maleTeachers = await collection.aggregate([
+  { $match: { gender: "male" } }
+]).toArray();
+// Step 2: extract their ages
+const maleAges = maleTeachers.map(t => t.age);
+// Step 3: use those ages as input to next query
+const result5 = await collection.aggregate([
+  { $match: { age: { $in: maleAges } } },  // ← using result1 as input!
+  { $group: { _id: "$age", names: { $push: "$name" } } }
+]).toArray();
+
+    const result6 = await collection.aggregate([
+      { $match: { gender: "male" } },
+      { $group: { _id: "$age", number: { $sum: 1 } } },
+      { $sort: { number: -1 } }
+    ]).toArray();
+      //db.collection.aggregate([
+      //   {
+      //     $stageOperator: {
+      //       field: value,
+      //       anotherField: value
+      //     }
+      //   }
+      // ])
       console.log('Aggregation Result:', result);
       console.log("Grouped aggreagate res", result2);
       console.log("Grouped aggreagate res all docs", result3);
+      console.log("Grouped aggreagate res all docs", result4);
+    console.log("Grouped aggreagate res all docs", result5);
+    console.log("group male teacher sorted wrt count dec", result6);
+      
   } catch (err) {
     console.error('An error occurred:', err);
   } finally {
